@@ -114,7 +114,7 @@ def make_image(prompt, aspect, out, seed=0):
     src = pollinations_image(full, aspect, out, seed)
     # Pollinations stamps a small mark in the bottom corner on anonymous calls: crop it away
     im = Image.open(out).convert('RGB')
-    im.crop((0, 0, im.width, int(im.height * 0.93))).save(out, quality=95)
+    im.crop((0, 0, im.width, int(im.height * 0.9))).save(out, quality=95)
     return src
 
 
