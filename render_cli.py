@@ -51,8 +51,9 @@ def main():
                 app.text_card(src, out, app.SIZES[job.get('aspect', '2:3')], job['headline'], job.get('sub', ''))
             else:
                 os.rename(src, out)
-            urls = publish(tag, [out])
-            callback({'ok': True, 'url': urls[out]})
+            lg = f'{d}/{tag}_log.json'; json.dump({'warnings': app.ERRORS}, open(lg, 'w'))
+            urls = publish(tag, [out, lg])
+            callback({'ok': True, 'url': urls[out], 'warnings': app.ERRORS})
             return
         res = app.produce(job, kind)
         d = f"{app.DATA}/files/{res['dir']}"
@@ -62,7 +63,8 @@ def main():
         # unique asset names so a release never mixes files
         for k in ('thumbnail_url', 'pin_url'):
             nn = f'{d}/{vid}_{k.split("_")[0]}.jpg'; os.rename(names[k], nn); names[k] = nn
-        urls = publish(tag, list(names.values()))
+        json.dump(res.get('log', {}), open(f'{d}/{vid}_log.json', 'w'), indent=1)
+        urls = publish(tag, list(names.values()) + [f'{d}/{vid}_log.json'])
         res.update({k: urls[v] for k, v in names.items()})
         res.pop('internal_video_path', None)
         res['release'] = f'https://github.com/{repo}/releases/tag/{tag}'

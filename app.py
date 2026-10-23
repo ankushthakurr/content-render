@@ -37,6 +37,9 @@ LOCK = threading.Lock()
 SIZES = {'9:16': (1080, 1920), '16:9': (2560, 1440), '2:3': (1000, 1500), '1:1': (1080, 1080), '4:5': (1080, 1350)}
 
 
+ERRORS = []  # non-fatal problems, reported back to n8n
+
+
 class CreditError(Exception):
     pass
 
@@ -107,7 +110,12 @@ def make_image(prompt, aspect, out, seed=0):
             return gemini_image(full, aspect, out)
         except Exception as e:  # quota or safety block: fall back, never pay
             print('gemini image fallback:', e)
-    return pollinations_image(full, aspect, out, seed)
+            ERRORS.append(f'gemini image: {str(e)[:300]}')
+    src = pollinations_image(full, aspect, out, seed)
+    # Pollinations stamps a small mark in the bottom corner on anonymous calls: crop it away
+    im = Image.open(out).convert('RGB')
+    im.crop((0, 0, im.width, int(im.height * 0.93))).save(out, quality=95)
+    return src
 
 
 def vision_qc(imgs, rules):
@@ -130,6 +138,7 @@ def vision_qc(imgs, rules):
         return [int(b['n']) for b in json.loads(txt).get('bad', [])]
     except Exception as e:
         print('vision qc skipped:', e)
+        ERRORS.append(f'vision qc: {str(e)[:300]}')
         return []
 
 
@@ -223,6 +232,7 @@ def produce(req, kind):
         if s['n'] in bad:
             gen(s, seed=7)
     log['qc_regenerated'] = bad
+    log['warnings'] = ERRORS
 
     run(['python3', f'{SCRIPTS}/tts_kokoro.py', sp, assets, voice, str(req.get('speed', 1.0))])
     if kind == 'short':
