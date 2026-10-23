@@ -1,0 +1,4 @@
+scripts/kokoro_model/
+out/
+job.json
+__pycache__/

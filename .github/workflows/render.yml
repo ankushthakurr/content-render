@@ -1,0 +1,63 @@
+name: render
+# Started by n8n (workflow_dispatch). Renders one video or image for free and calls n8n back.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job JSON (kind, script, voice, ...)
+        required: true
+      callback:
+        description: n8n resume URL
+        required: true
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hide callback URL
+        env:
+          CB: ${{ inputs.callback }}
+        run: echo "::add-mask::$CB"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Cache voice model
+        id: km
+        uses: actions/cache@v4
+        with:
+          path: scripts/kokoro_model
+          key: kokoro-v1.0
+      - name: Download voice model
+        if: steps.km.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p scripts/kokoro_model && cd scripts/kokoro_model
+          curl -fsSL -o kokoro-v1.0.onnx https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+          curl -fsSL -o voices-v1.0.bin https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg libsndfile1 >/dev/null
+          sudo mkdir -p /usr/share/fonts/opentype/inter && sudo cp fonts/*.otf /usr/share/fonts/opentype/inter/ && fc-cache -f
+          pip install -q -r requirements.txt
+      - name: Render
+        env:
+          JOB: ${{ inputs.job }}
+          CALLBACK_URL: ${{ inputs.callback }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$JOB" > job.json
+          python render_cli.py job.json
+      - name: Delete renders older than 7 days
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cutoff=$(date -u -d '7 days ago' +%s)
+          gh release list --limit 200 --json tagName,createdAt -q '.[] | "\(.tagName) \(.createdAt)"' | while read t c; do
+            [ "$(date -u -d "$c" +%s)" -lt "$cutoff" ] && gh release delete "$t" --yes --cleanup-tag || true
+          done

@@ -1,0 +1,5 @@
+fastapi==0.161.1
+uvicorn==0.54.0
+pillow==12.3.0
+kokoro-onnx==0.6.1
+soundfile==0.14.0
