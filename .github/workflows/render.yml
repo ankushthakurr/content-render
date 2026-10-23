@@ -40,10 +40,9 @@ jobs:
       - name: Install
         timeout-minutes: 15
         run: |
-          # skip the slow man-db trigger; ffmpeg + sndfile only
-          sudo rm -f /var/lib/man-db/auto-update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ffmpeg libsndfile1 >/dev/null \
-            || (sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends ffmpeg libsndfile1 >/dev/null)
+          # static ffmpeg (with libass) from a GitHub release: fast and no apt locks
+          curl -fsSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C /tmp
+          sudo cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ff* /usr/local/bin/ && ffmpeg -hide_banner -version | head -1
           sudo mkdir -p /usr/share/fonts/opentype/inter && sudo cp fonts/*.otf /usr/share/fonts/opentype/inter/ && fc-cache -f
           pip install -q -r requirements.txt
       - name: Render
