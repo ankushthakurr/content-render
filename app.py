@@ -25,7 +25,7 @@ FONTS = f'{HERE}/fonts'
 DATA = os.environ.get('DATA_DIR', '/data')
 PUBLIC = os.environ.get('PUBLIC_BASE_URL', 'http://localhost:8000').rstrip('/')
 TOKEN = os.environ.get('WORKER_TOKEN', '')
-GKEY = os.environ.get('GEMINI_API_KEY', '')
+GKEY = os.environ.get('GEMINI_API_KEY', '').strip()
 IMAGE_MODEL = os.environ.get('IMAGE_MODEL', 'gemini-2.5-flash-image')
 QC_MODEL = os.environ.get('QC_MODEL', 'gemini-2.5-flash')
 POLL_TOKEN = os.environ.get('POLLINATIONS_TOKEN', '')
@@ -37,7 +37,14 @@ LOCK = threading.Lock()
 SIZES = {'9:16': (1080, 1920), '16:9': (2560, 1440), '2:3': (1000, 1500), '1:1': (1080, 1080), '4:5': (1080, 1350)}
 
 
-ERRORS = []  # non-fatal problems, reported back to n8n
+ERRORS = []  # non-fatal problems, reported back to n8n (published, so keys are redacted)
+
+
+def redact(msg):
+    msg = str(msg)
+    if GKEY:
+        msg = msg.replace(GKEY, '***')
+    return re.sub(r'AIza[0-9A-Za-z_\\-]{20,}', '***', msg)
 
 
 class CreditError(Exception):
@@ -109,8 +116,8 @@ def make_image(prompt, aspect, out, seed=0):
         try:
             return gemini_image(full, aspect, out)
         except Exception as e:  # quota or safety block: fall back, never pay
-            print('gemini image fallback:', e)
-            ERRORS.append(f'gemini image: {str(e)[:300]}')
+            print('gemini image fallback:', redact(e))
+            ERRORS.append('gemini image: ' + redact(e)[:300])
     src = pollinations_image(full, aspect, out, seed)
     # Pollinations stamps a small mark in the bottom corner on anonymous calls: crop it away
     im = Image.open(out).convert('RGB')
@@ -137,8 +144,8 @@ def vision_qc(imgs, rules):
         txt = data['candidates'][0]['content']['parts'][0]['text']
         return [int(b['n']) for b in json.loads(txt).get('bad', [])]
     except Exception as e:
-        print('vision qc skipped:', e)
-        ERRORS.append(f'vision qc: {str(e)[:300]}')
+        print('vision qc skipped:', redact(e))
+        ERRORS.append('vision qc: ' + redact(e)[:300])
         return []
 
 

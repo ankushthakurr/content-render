@@ -70,11 +70,11 @@ def main():
         res['release'] = f'https://github.com/{repo}/releases/tag/{tag}'
         callback(res)
     except app.CreditError as e:
-        callback({'ok': False, 'blocked': 'credits', 'error': str(e)[:1500], 'qc': {'pass': False, 'raw': str(e)[:500]}})
+        callback({'ok': False, 'blocked': 'credits', 'error': app.redact(e)[:1500], 'qc': {'pass': False, 'raw': app.redact(e)[:500]}})
         sys.exit(1)
     except Exception as e:
         traceback.print_exc()
-        callback({'ok': False, 'error': str(e)[:1500], 'qc': {'pass': False, 'raw': str(e)[:500]}})
+        callback({'ok': False, 'error': app.redact(e)[:1500], 'qc': {'pass': False, 'raw': app.redact(e)[:500]}})
         sys.exit(1)
 
 
